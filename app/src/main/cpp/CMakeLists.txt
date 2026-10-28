@@ -3,6 +3,7 @@ project(LIFE)
 
 add_library(life SHARED
     main.cpp
+    gltf_model.cpp
     ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c
 )
 

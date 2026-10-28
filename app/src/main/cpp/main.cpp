@@ -1,4 +1,5 @@
 #include <android_native_app_glue.h>
+#include "gltf_model.h"
 #include <android/input.h>
 #include <android/log.h>
 #include <EGL/egl.h>
@@ -148,7 +149,7 @@ static GLuint compileShader(GLenum type,const char* src){
     return s;
 }
 
-static bool initGraphics(ANativeWindow* window){
+static bool initGraphics(ANativeWindow* window, AAssetManager* assets){
     display=eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if(display==EGL_NO_DISPLAY ||
        !eglInitialize(display,nullptr,nullptr)) return false;
@@ -264,6 +265,7 @@ static bool initGraphics(ANativeWindow* window){
         sizeof(Vertex),(void*)(3*sizeof(float)));
     glEnableVertexAttribArray(1);
 
+    initGltfModel(assets);
     return true;
 }
 
@@ -322,6 +324,9 @@ static void drawFrame(){
     drawPart(3.0f,0.0f,-6.0f,2.5f,0.8f,1.2f,
              0.25f,0.55f,0.22f);
 
+    if (isGltfModelLoaded()) {
+        drawGltfModel(viewProjection, playerX);
+    } else {
     // Shoes
     drawPart(playerX-0.13f,0.09f,0.0f,
              0.12f,0.09f,0.19f,0.08f,0.08f,0.09f);
@@ -368,6 +373,8 @@ static void drawFrame(){
     drawPart(playerX+0.06f,1.50f,0.139f,
              0.018f,0.023f,0.012f,0.06f,0.04f,0.03f);
 
+    }
+
     eglSwapBuffers(display,surface);
 }
 
@@ -406,6 +413,7 @@ static void shutdownGraphics(){
         eglMakeCurrent(display,EGL_NO_SURFACE,
                        EGL_NO_SURFACE,EGL_NO_CONTEXT);
 
+        destroyGltfModel();
         if(program) glDeleteProgram(program);
         if(vbo) glDeleteBuffers(1,&vbo);
         if(ebo) glDeleteBuffers(1,&ebo);
@@ -427,7 +435,7 @@ static void shutdownGraphics(){
 
 static void handleCommand(android_app* app,int32_t command){
     if(command==APP_CMD_INIT_WINDOW && app->window){
-        if(!initGraphics(app->window))
+        if(!initGraphics(app->window, app->activity->assetManager))
             LOGE("Graphics initialization failed");
     }else if(command==APP_CMD_TERM_WINDOW){
         shutdownGraphics();
