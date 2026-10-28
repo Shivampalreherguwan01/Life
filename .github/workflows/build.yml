@@ -2,8 +2,7 @@ name: Build LIFE Android APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -31,15 +30,14 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
-
-      - name: Install Android build tools
+      - name: Install required Android SDK packages
         run: |
-          sdkmanager "platforms;android-35" \
-                     "build-tools;35.0.0" \
-                     "ndk;27.2.12479018" \
-                     "cmake;3.22.1"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;27.2.12479018" \
+            "cmake;3.22.1"
 
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
