@@ -18,6 +18,9 @@ static GLuint program=0;
 static GLuint vao=0,vbo=0,ebo=0;
 static GLsizei indexCount=0;
 
+static GLuint cubeVao=0, cubeVbo=0, cubeEbo=0;
+static GLsizei cubeIndexCount=0;
+
 static int width=1,height=1;
 static float playerX=0.0f,lastTouchX=0.0f;
 static bool touching=false;
@@ -99,6 +102,66 @@ static void modelMatrix(float* m,float x,float y,float z,
     m[12]=x;
     m[13]=y;
     m[14]=z;
+}
+
+static void initCubeMesh(){
+    const Vertex v[] = {
+        {-0.5f,-0.5f, 0.5f, 0,0,1},
+        { 0.5f,-0.5f, 0.5f, 0,0,1},
+        { 0.5f, 0.5f, 0.5f, 0,0,1},
+        {-0.5f, 0.5f, 0.5f, 0,0,1},
+
+        { 0.5f,-0.5f,-0.5f, 0,0,-1},
+        {-0.5f,-0.5f,-0.5f, 0,0,-1},
+        {-0.5f, 0.5f,-0.5f, 0,0,-1},
+        { 0.5f, 0.5f,-0.5f, 0,0,-1},
+
+        {-0.5f, 0.5f, 0.5f, 0,1,0},
+        { 0.5f, 0.5f, 0.5f, 0,1,0},
+        { 0.5f, 0.5f,-0.5f, 0,1,0},
+        {-0.5f, 0.5f,-0.5f, 0,1,0},
+
+        {-0.5f,-0.5f,-0.5f, 0,-1,0},
+        { 0.5f,-0.5f,-0.5f, 0,-1,0},
+        { 0.5f,-0.5f, 0.5f, 0,-1,0},
+        {-0.5f,-0.5f, 0.5f, 0,-1,0},
+
+        {0.5f,-0.5f, 0.5f, 1,0,0},
+        {0.5f,-0.5f,-0.5f, 1,0,0},
+        {0.5f, 0.5f,-0.5f, 1,0,0},
+        {0.5f, 0.5f, 0.5f, 1,0,0},
+
+        {-0.5f,-0.5f,-0.5f,-1,0,0},
+        {-0.5f,-0.5f, 0.5f,-1,0,0},
+        {-0.5f, 0.5f, 0.5f,-1,0,0},
+        {-0.5f, 0.5f,-0.5f,-1,0,0}
+    };
+
+    const unsigned int ix[] = {
+        0,1,2, 0,2,3, 4,5,6, 4,6,7,
+        8,9,10, 8,10,11, 12,13,14, 12,14,15,
+        16,17,18, 16,18,19, 20,21,22, 20,22,23
+    };
+
+    cubeIndexCount = sizeof(ix)/sizeof(ix[0]);
+    glGenVertexArrays(1,&cubeVao);
+    glBindVertexArray(cubeVao);
+
+    glGenBuffers(1,&cubeVbo);
+    glBindBuffer(GL_ARRAY_BUFFER,cubeVbo);
+    glBufferData(GL_ARRAY_BUFFER,sizeof(v),v,GL_STATIC_DRAW);
+
+    glGenBuffers(1,&cubeEbo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,cubeEbo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,sizeof(ix),ix,GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,
+        sizeof(Vertex),(void*)0);
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,
+        sizeof(Vertex),(void*)(3*sizeof(float)));
+    glEnableVertexAttribArray(1);
 }
 
 static const char* vertexShader=R"(
@@ -265,6 +328,7 @@ static bool initGraphics(ANativeWindow* window, AAssetManager* assets){
         sizeof(Vertex),(void*)(3*sizeof(float)));
     glEnableVertexAttribArray(1);
 
+    initCubeMesh();
     initGltfModel(assets);
     return true;
 }
@@ -276,6 +340,7 @@ static void drawPart(float x,float y,float z,
                      float r,float g,float b){
     float model[16],mvp[16];
 
+    glBindVertexArray(vao);
     modelMatrix(model,x,y,z,sx,sy,sz);
     multiply(mvp,viewProjection,model);
 
@@ -287,6 +352,128 @@ static void drawPart(float x,float y,float z,
         glGetUniformLocation(program,"tint"),r,g,b);
 
     glDrawElements(GL_TRIANGLES,indexCount,GL_UNSIGNED_INT,nullptr);
+}
+
+static void drawBlock(float x,float y,float z,
+                       float sx,float sy,float sz,
+                       float r,float g,float b){
+    float model[16],mvp[16];
+    glBindVertexArray(cubeVao);
+    modelMatrix(model,x,y,z,sx,sy,sz);
+    multiply(mvp,viewProjection,model);
+
+    glUniformMatrix4fv(glGetUniformLocation(program,"model"),
+                       1,GL_FALSE,model);
+    glUniformMatrix4fv(glGetUniformLocation(program,"mvp"),
+                       1,GL_FALSE,mvp);
+    glUniform3f(glGetUniformLocation(program,"tint"),r,g,b);
+    glDrawElements(GL_TRIANGLES,cubeIndexCount,
+                   GL_UNSIGNED_INT,nullptr);
+}
+
+static void drawCity(){
+    // Large grassy world base.
+    drawBlock(0,-0.25f,-10,70,0.5f,70,0.22f,0.48f,0.19f);
+
+    // Main asphalt road running through the town.
+    drawBlock(0,0.015f,-10,6.5f,0.06f,60,
+              0.19f,0.20f,0.22f);
+
+    // A crossing road and intersection.
+    drawBlock(0,0.02f,-8,38,0.07f,5.0f,
+              0.19f,0.20f,0.22f);
+
+    // Sidewalks along the main road.
+    drawBlock(-3.65f,0.10f,-10,0.75f,0.20f,60,
+              0.58f,0.58f,0.54f);
+    drawBlock(3.65f,0.10f,-10,0.75f,0.20f,60,
+              0.58f,0.58f,0.54f);
+
+    // Broken white centre line.
+    for(int i=0;i<12;i++){
+        float z=7.0f-i*4.5f;
+        drawBlock(0,0.065f,z,0.13f,0.025f,2.0f,
+                  0.95f,0.93f,0.78f);
+    }
+
+    // Pedestrian crossing stripes.
+    for(int i=0;i<7;i++){
+        drawBlock(-1.8f+i*0.6f,0.075f,-7.2f,
+                  0.32f,0.025f,1.4f,0.94f,0.94f,0.88f);
+    }
+
+    // Buildings on both sides of the street.
+    const float zs[] = {4,-3,-13,-22};
+    const float heights[] = {3.2f,4.5f,3.7f,5.0f};
+    const float widths[] = {3.0f,3.5f,3.0f,3.8f};
+
+    for(int i=0;i<4;i++){
+        for(int side=-1;side<=1;side+=2){
+            float x=side*7.0f;
+            float h=heights[i];
+            float w=widths[i];
+            float z=zs[i];
+
+            float r=(i%2==0)?0.76f:0.82f;
+            float g=(i%2==0)?0.61f:0.72f;
+            float b=(i%2==0)?0.43f:0.55f;
+
+            drawBlock(x,h*0.5f,z,w,h,4.0f,r,g,b);
+
+            // Flat roof edge.
+            drawBlock(x,h+0.08f,z,w+0.15f,0.16f,4.15f,
+                      0.40f,0.39f,0.36f);
+
+            // Front windows facing the road.
+            for(int row=0;row<2;row++){
+                for(int col=-1;col<=1;col++){
+                    drawBlock(x+col*0.82f,1.15f+row*1.15f,
+                              z+2.025f,0.43f,0.58f,0.035f,
+                              0.25f,0.66f,0.78f);
+                }
+            }
+
+            // Shop-style door at street level.
+            drawBlock(x,0.85f,z+2.04f,0.65f,1.55f,0.06f,
+                      0.28f,0.20f,0.14f);
+        }
+    }
+
+    // Simple street lights.
+    for(int i=0;i<6;i++){
+        float z=5.0f-i*8.0f;
+        for(int side=-1;side<=1;side+=2){
+            float x=side*4.25f;
+            drawBlock(x,1.35f,z,0.12f,2.7f,0.12f,
+                      0.22f,0.23f,0.25f);
+            drawBlock(x,2.75f,z,0.55f,0.18f,0.35f,
+                      0.98f,0.88f,0.48f);
+        }
+    }
+
+    // Low park wall and a small park patch.
+    drawBlock(13,0.05f,-13,9,0.1f,12,
+              0.16f,0.39f,0.16f);
+    drawBlock(13,0.28f,-13,8.5f,0.45f,0.10f,
+              0.72f,0.72f,0.66f);
+    drawBlock(13,0.28f,-7,8.5f,0.45f,0.10f,
+              0.72f,0.72f,0.66f);
+    drawBlock(8.8f,0.28f,-10,0.10f,0.45f,6,
+              0.72f,0.72f,0.66f);
+    drawBlock(17.2f,0.28f,-10,0.10f,0.45f,6,
+              0.72f,0.72f,0.66f);
+
+    // Tree trunks and leafy crowns.
+    for(int i=0;i<4;i++){
+        float z=4.0f-i*5.0f;
+        for(int side=-1;side<=1;side+=2){
+            float x=side*5.2f;
+            drawBlock(x,0.85f,z,0.28f,1.7f,0.28f,
+                      0.34f,0.20f,0.10f);
+            drawPart(x,2.0f,z,0.85f,0.95f,0.85f,
+                     0.12f,0.39f,0.12f);
+        }
+    }
 }
 
 static void drawFrame(){
@@ -307,22 +494,14 @@ static void drawFrame(){
     float aspect=(float)width/(float)std::max(height,1);
 
     perspective(projection,1.05f,aspect,0.1f,100.0f);
-    lookAt(view,{0.0f,2.5f,6.0f},
-                {0.0f,0.9f,0.0f},{0.0f,1.0f,0.0f});
+    lookAt(view,{0.0f,6.0f,12.0f},
+                {0.0f,0.8f,-5.0f},{0.0f,1.0f,0.0f});
     multiply(viewProjection,projection,view);
 
     glUseProgram(program);
     glBindVertexArray(vao);
 
-    // Grass ground
-    drawPart(0.0f,-0.18f,0.0f,12.0f,0.12f,12.0f,
-             0.19f,0.48f,0.17f);
-
-    // Small distant green hills
-    drawPart(-3.0f,0.0f,-5.0f,2.0f,0.65f,1.0f,
-             0.22f,0.52f,0.20f);
-    drawPart(3.0f,0.0f,-6.0f,2.5f,0.8f,1.2f,
-             0.25f,0.55f,0.22f);
+    drawCity();
 
     if (isGltfModelLoaded()) {
         drawGltfModel(viewProjection, playerX);
@@ -414,6 +593,9 @@ static void shutdownGraphics(){
                        EGL_NO_SURFACE,EGL_NO_CONTEXT);
 
         destroyGltfModel();
+        if(cubeVbo) glDeleteBuffers(1,&cubeVbo);
+        if(cubeEbo) glDeleteBuffers(1,&cubeEbo);
+        if(cubeVao) glDeleteVertexArrays(1,&cubeVao);
         if(program) glDeleteProgram(program);
         if(vbo) glDeleteBuffers(1,&vbo);
         if(ebo) glDeleteBuffers(1,&ebo);
