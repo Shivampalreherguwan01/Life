@@ -1,0 +1,26 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-feature android:glEsVersion="0x00030000" android:required="true" />
+
+    <application
+        android:label="LIFE"
+        android:hasCode="false"
+        android:theme="@android:style/Theme.Material.NoActionBar"
+        android:allowBackup="false">
+
+        <activity
+            android:name="android.app.NativeActivity"
+            android:label="LIFE"
+            android:exported="true"
+            android:screenOrientation="landscape">
+
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="life" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
