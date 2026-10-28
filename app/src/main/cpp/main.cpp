@@ -24,6 +24,13 @@ static GLsizei cubeIndexCount=0;
 static int width=1,height=1;
 static float playerX=0.0f,lastTouchX=0.0f;
 static bool touching=false;
+static bool playerMoving=false;
+static bool movedTouch=false;
+static float touchStartX=0.0f;
+static float playerFacing=1.0f;
+static float jumpY=0.0f;
+static float jumpVelocity=0.0f;
+static float animationTime=0.0f;
 
 struct Vertex {
     float x,y,z,nx,ny,nz;
@@ -476,12 +483,32 @@ static void drawCity(){
     }
 }
 
+static void drawPlayerPart(float x,float y,float z,
+                            float sx,float sy,float sz,
+                            float r,float g,float b){
+    drawPart(playerX+x,y+jumpY,z,sx,sy,sz,r,g,b);
+}
+
 static void drawFrame(){
     if(display==EGL_NO_DISPLAY || surface==EGL_NO_SURFACE)
         return;
 
     if(!eglMakeCurrent(display,surface,surface,context))
         return;
+
+    // Lightweight animation and jump physics.
+    animationTime += 0.055f;
+    if(playerMoving) {
+        // Walking animation runs while the player is being dragged.
+    }
+    if(jumpY > 0.0f || jumpVelocity > 0.0f) {
+        jumpY += jumpVelocity;
+        jumpVelocity -= 0.0065f;
+        if(jumpY <= 0.0f) {
+            jumpY = 0.0f;
+            jumpVelocity = 0.0f;
+        }
+    }
 
     glViewport(0,0,width,height);
     glClearColor(0.48f,0.72f,0.94f,1.0f);
@@ -503,53 +530,53 @@ static void drawFrame(){
 
     drawCity();
 
-    if (isGltfModelLoaded()) {
+    if (false && isGltfModelLoaded()) {
         drawGltfModel(viewProjection, playerX);
     } else {
     // Shoes
-    drawPart(playerX-0.13f,0.09f,0.0f,
+    drawPlayerPart(-0.13f + (playerMoving ? sinf(animationTime)*0.055f : 0.0f),0.09f + (playerMoving ? fabsf(sinf(animationTime))*0.035f : 0.0f),(playerMoving ? cosf(animationTime)*0.045f : 0.0f),
              0.12f,0.09f,0.19f,0.08f,0.08f,0.09f);
-    drawPart(playerX+0.13f,0.09f,0.0f,
+    drawPlayerPart(+0.13f - (playerMoving ? sinf(animationTime)*0.055f : 0.0f),0.09f + (playerMoving ? fabsf(sinf(animationTime))*0.035f : 0.0f),(playerMoving ? -cosf(animationTime)*0.045f : 0.0f),
              0.12f,0.09f,0.19f,0.08f,0.08f,0.09f);
 
     // Legs
-    drawPart(playerX-0.12f,0.39f,0.0f,
+    drawPlayerPart(-0.12f + (playerMoving ? sinf(animationTime)*0.075f : 0.0f),0.39f + (playerMoving ? fabsf(sinf(animationTime))*0.025f : 0.0f),(playerMoving ? cosf(animationTime)*0.07f : 0.0f),
              0.095f,0.30f,0.10f,0.12f,0.20f,0.75f);
-    drawPart(playerX+0.12f,0.39f,0.0f,
+    drawPlayerPart(+0.12f - (playerMoving ? sinf(animationTime)*0.075f : 0.0f),0.39f + (playerMoving ? fabsf(sinf(animationTime))*0.025f : 0.0f),(playerMoving ? -cosf(animationTime)*0.07f : 0.0f),
              0.095f,0.30f,0.10f,0.12f,0.20f,0.75f);
 
     // Torso
-    drawPart(playerX,0.91f,0.0f,
+    drawPlayerPart(0.0f,0.91f,0.0f,
              0.25f,0.36f,0.15f,0.06f,0.13f,0.28f);
 
     // Shoulders
-    drawPart(playerX-0.28f,1.12f,0.0f,
+    drawPlayerPart(-0.28f,1.12f,0.0f,
              0.14f,0.14f,0.14f,0.06f,0.13f,0.28f);
-    drawPart(playerX+0.28f,1.12f,0.0f,
+    drawPlayerPart(+0.28f,1.12f,0.0f,
              0.14f,0.14f,0.14f,0.06f,0.13f,0.28f);
 
     // Arms
-    drawPart(playerX-0.32f,0.87f,0.0f,
+    drawPlayerPart(-0.32f,0.87f,(playerMoving ? -sinf(animationTime)*0.10f : 0.0f),
              0.085f,0.27f,0.09f,0.76f,0.48f,0.32f);
-    drawPart(playerX+0.32f,0.87f,0.0f,
+    drawPlayerPart(+0.32f,0.87f,(playerMoving ? sinf(animationTime)*0.10f : 0.0f),
              0.085f,0.27f,0.09f,0.76f,0.48f,0.32f);
 
     // Neck
-    drawPart(playerX,1.30f,0.0f,
+    drawPlayerPart(0.0f,1.30f,0.0f,
              0.075f,0.10f,0.075f,0.76f,0.48f,0.32f);
 
     // Head
-    drawPart(playerX,1.48f,0.0f,
+    drawPlayerPart(0.0f,1.48f,0.0f,
              0.16f,0.20f,0.15f,0.82f,0.60f,0.43f);
 
     // Hair
-    drawPart(playerX,1.64f,-0.005f,
+    drawPlayerPart(0.0f,1.64f,-0.005f,
              0.16f,0.065f,0.15f,0.10f,0.065f,0.035f);
 
     // Eyes
-    drawPart(playerX-0.06f,1.50f,0.139f,
+    drawPlayerPart(-0.06f,1.50f,0.139f*playerFacing,
              0.018f,0.023f,0.012f,0.06f,0.04f,0.03f);
-    drawPart(playerX+0.06f,1.50f,0.139f,
+    drawPlayerPart(+0.06f,1.50f,0.139f*playerFacing,
              0.018f,0.023f,0.012f,0.06f,0.04f,0.03f);
 
     }
@@ -567,12 +594,24 @@ static int32_t handleInput(android_app*,AInputEvent* event){
 
     if(action==AMOTION_EVENT_ACTION_DOWN){
         touching=true;
+        movedTouch=false;
+        touchStartX=x;
         lastTouchX=x;
+        playerMoving=false;
         return 1;
     }
 
     if(action==AMOTION_EVENT_ACTION_MOVE && touching){
-        playerX+=(x-lastTouchX)*2.0f/(float)std::max(width,1);
+        float dx=x-lastTouchX;
+        if(fabsf(x-touchStartX)>8.0f)
+            movedTouch=true;
+
+        if(fabsf(dx)>0.5f){
+            playerFacing=(dx<0.0f)?-1.0f:1.0f;
+            playerMoving=true;
+        }
+
+        playerX+=dx*2.0f/(float)std::max(width,1);
         playerX=std::clamp(playerX,-2.0f,2.0f);
         lastTouchX=x;
         return 1;
@@ -580,7 +619,12 @@ static int32_t handleInput(android_app*,AInputEvent* event){
 
     if(action==AMOTION_EVENT_ACTION_UP ||
        action==AMOTION_EVENT_ACTION_CANCEL){
+        if(action==AMOTION_EVENT_ACTION_UP && !movedTouch){
+            if(jumpY<=0.001f && jumpVelocity<=0.0f)
+                jumpVelocity=0.15f;
+        }
         touching=false;
+        playerMoving=false;
         return 1;
     }
 
