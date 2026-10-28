@@ -486,7 +486,14 @@ static void drawCity(){
 static void drawPlayerPart(float x,float y,float z,
                             float sx,float sy,float sz,
                             float r,float g,float b){
-    drawPart(playerX+x,y+jumpY,z,sx,sy,sz,r,g,b);
+    // Turn the whole character when facing the opposite direction.
+    float facing = playerFacing;
+    float worldX = playerX + x * facing;
+
+    // Gentle body bounce while walking.
+    float bob = playerMoving ? fabsf(sinf(animationTime * 2.0f))*0.025f : 0.0f;
+
+    drawPart(worldX,y+jumpY+bob,z*facing,sx,sy,sz,r,g,b);
 }
 
 static void drawFrame(){
@@ -534,15 +541,15 @@ static void drawFrame(){
         drawGltfModel(viewProjection, playerX);
     } else {
     // Shoes
-    drawPlayerPart(-0.13f + (playerMoving ? sinf(animationTime)*0.055f : 0.0f),0.09f + (playerMoving ? fabsf(sinf(animationTime))*0.035f : 0.0f),(playerMoving ? cosf(animationTime)*0.045f : 0.0f),
+    drawPlayerPart(-0.13f + (playerMoving ? sinf(animationTime*2.0f)*0.085f : 0.0f),0.09f + (playerMoving ? fabsf(sinf(animationTime*2.0f))*0.055f : 0.0f),(playerMoving ? cosf(animationTime*2.0f)*0.065f : 0.0f),
              0.12f,0.09f,0.19f,0.08f,0.08f,0.09f);
-    drawPlayerPart(+0.13f - (playerMoving ? sinf(animationTime)*0.055f : 0.0f),0.09f + (playerMoving ? fabsf(sinf(animationTime))*0.035f : 0.0f),(playerMoving ? -cosf(animationTime)*0.045f : 0.0f),
+    drawPlayerPart(+0.13f - (playerMoving ? sinf(animationTime*2.0f)*0.085f : 0.0f),0.09f + (playerMoving ? fabsf(sinf(animationTime*2.0f))*0.055f : 0.0f),(playerMoving ? -cosf(animationTime*2.0f)*0.065f : 0.0f),
              0.12f,0.09f,0.19f,0.08f,0.08f,0.09f);
 
     // Legs
-    drawPlayerPart(-0.12f + (playerMoving ? sinf(animationTime)*0.075f : 0.0f),0.39f + (playerMoving ? fabsf(sinf(animationTime))*0.025f : 0.0f),(playerMoving ? cosf(animationTime)*0.07f : 0.0f),
+    drawPlayerPart(-0.12f + (playerMoving ? sinf(animationTime*2.0f)*0.105f : 0.0f),0.39f + (playerMoving ? fabsf(sinf(animationTime*2.0f))*0.035f : 0.0f),(playerMoving ? cosf(animationTime*2.0f)*0.11f : 0.0f),
              0.095f,0.30f,0.10f,0.12f,0.20f,0.75f);
-    drawPlayerPart(+0.12f - (playerMoving ? sinf(animationTime)*0.075f : 0.0f),0.39f + (playerMoving ? fabsf(sinf(animationTime))*0.025f : 0.0f),(playerMoving ? -cosf(animationTime)*0.07f : 0.0f),
+    drawPlayerPart(+0.12f - (playerMoving ? sinf(animationTime*2.0f)*0.105f : 0.0f),0.39f + (playerMoving ? fabsf(sinf(animationTime*2.0f))*0.035f : 0.0f),(playerMoving ? -cosf(animationTime*2.0f)*0.11f : 0.0f),
              0.095f,0.30f,0.10f,0.12f,0.20f,0.75f);
 
     // Torso
@@ -556,9 +563,9 @@ static void drawFrame(){
              0.14f,0.14f,0.14f,0.06f,0.13f,0.28f);
 
     // Arms
-    drawPlayerPart(-0.32f,0.87f,(playerMoving ? -sinf(animationTime)*0.10f : 0.0f),
+    drawPlayerPart(-0.32f,0.87f,(playerMoving ? -sinf(animationTime*2.0f)*0.14f : 0.0f),
              0.085f,0.27f,0.09f,0.76f,0.48f,0.32f);
-    drawPlayerPart(+0.32f,0.87f,(playerMoving ? sinf(animationTime)*0.10f : 0.0f),
+    drawPlayerPart(+0.32f,0.87f,(playerMoving ? sinf(animationTime*2.0f)*0.14f : 0.0f),
              0.085f,0.27f,0.09f,0.76f,0.48f,0.32f);
 
     // Neck
@@ -574,9 +581,9 @@ static void drawFrame(){
              0.16f,0.065f,0.15f,0.10f,0.065f,0.035f);
 
     // Eyes
-    drawPlayerPart(-0.06f,1.50f,0.139f*playerFacing,
+    drawPlayerPart(-0.06f,1.50f,0.139f,
              0.018f,0.023f,0.012f,0.06f,0.04f,0.03f);
-    drawPlayerPart(+0.06f,1.50f,0.139f*playerFacing,
+    drawPlayerPart(+0.06f,1.50f,0.139f,
              0.018f,0.023f,0.012f,0.06f,0.04f,0.03f);
 
     }
