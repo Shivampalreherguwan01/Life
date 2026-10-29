@@ -38,6 +38,15 @@ static int joystickPointerId=-1;
 static float joystickX=0.0f;
 static float joystickY=0.0f;
 static bool playerRunning=false;
+static float cameraYaw=0.0f;
+static float cameraPitch=0.30f;
+static bool cameraTouchActive=false;
+static int cameraPointerId=-1;
+static float cameraLastX=0.0f;
+static float cameraLastY=0.0f;
+static float cameraTouchStartX=0.0f;
+static float cameraTouchStartY=0.0f;
+static bool cameraTouchMoved=false;
 
 struct Vertex {
     float x,y,z,nx,ny,nz;
@@ -587,21 +596,23 @@ static void drawControls(){
 
     identity(viewProjection);
     glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 
     float aspect=(float)std::max(height,1)/
                  (float)std::max(width,1);
 
-    // Joystick base.
+    // Larger, lightly translucent joystick base.
     drawPart(-0.70f,-0.57f,0.0f,
-             0.15f*aspect,0.15f,0.012f,
+             0.18f*aspect,0.18f,0.012f,
              0.20f,0.23f,0.28f);
 
-    // Joystick knob.
+    // Larger joystick knob.
     drawPart(
-        -0.70f+joystickX*0.115f,
-        -0.57f+joystickY*0.115f,
+        -0.70f+joystickX*0.135f,
+        -0.57f+joystickY*0.135f,
         0.025f,
-        0.072f*aspect,0.072f,0.018f,
+        0.086f*aspect,0.086f,0.018f,
         joystickActive ? 0.20f : 0.35f,
         joystickActive ? 0.65f : 0.40f,
         joystickActive ? 1.00f : 0.48f
@@ -609,9 +620,10 @@ static void drawControls(){
 
     // Jump button.
     drawPart(0.72f,-0.56f,0.0f,
-             0.115f*aspect,0.115f,0.012f,
+             0.125f*aspect,0.125f,0.012f,
              0.12f,0.55f,0.92f);
 
+    glDisable(GL_BLEND);
     for(int i=0;i<16;i++) viewProjection[i]=saved[i];
     glEnable(GL_DEPTH_TEST);
 }
@@ -674,14 +686,17 @@ static void drawFrame(){
     float aspect=(float)width/(float)std::max(height,1);
 
     perspective(projection,1.05f,aspect,0.1f,100.0f);
-    float camBackX=-sinf(playerYaw)*10.0f;
-    float camBackZ=-cosf(playerYaw)*10.0f;
-    float targetX=playerX+sinf(playerYaw)*2.0f;
-    float targetZ=playerZ+cosf(playerYaw)*2.0f;
+    float camDistance=10.0f;
+    float horizontalDistance=cosf(cameraPitch)*camDistance;
+    float camBackX=-sinf(cameraYaw)*horizontalDistance;
+    float camBackZ=-cosf(cameraYaw)*horizontalDistance;
+    float camHeight=5.0f+sinf(cameraPitch)*camDistance;
+    float targetX=playerX;
+    float targetZ=playerZ;
 
     lookAt(view,
-        {playerX+camBackX,5.5f+jumpY,playerZ+camBackZ},
-        {targetX,0.9f+jumpY,targetZ},
+        {playerX+camBackX,camHeight+jumpY,playerZ+camBackZ},
+        {targetX,1.0f+jumpY,targetZ},
         {0.0f,1.0f,0.0f});
     multiply(viewProjection,projection,view);
 
@@ -763,69 +778,108 @@ static int32_t handleInput(android_app*,AInputEvent* event){
         float y=AMotionEvent_getY(event,index);
         int id=AMotionEvent_getPointerId(event,index);
 
+        // Left lower area: joystick.
         if(x<width*0.42f && y>height*0.48f &&
            !joystickActive){
             joystickActive=true;
             joystickPointerId=id;
             joystickX=0.0f;
             joystickY=0.0f;
-        }else if(x>width*0.57f && y>height*0.48f){
-            if(jumpY<=0.001f && jumpVelocity<=0.0f)
-                jumpVelocity=0.15f;
+            return 1;
+        }
+
+        // Right side: camera drag, or jump on a short tap.
+        if(x>width*0.48f && !cameraTouchActive){
+            cameraTouchActive=true;
+            cameraPointerId=id;
+            cameraLastX=x;
+            cameraLastY=y;
+            cameraTouchStartX=x;
+            cameraTouchStartY=y;
+            cameraTouchMoved=false;
+            return 1;
         }
         return 1;
     }
 
     if(masked==AMOTION_EVENT_ACTION_MOVE){
-        if(joystickActive){
-            int count=AMotionEvent_getPointerCount(event);
+        int count=AMotionEvent_getPointerCount(event);
 
-            for(int i=0;i<count;i++){
-                if(AMotionEvent_getPointerId(event,i)
-                   !=joystickPointerId)
-                    continue;
+        for(int i=0;i<count;i++){
+            int id=AMotionEvent_getPointerId(event,i);
+            float x=AMotionEvent_getX(event,i);
+            float y=AMotionEvent_getY(event,i);
 
-                float x=AMotionEvent_getX(event,i);
-                float y=AMotionEvent_getY(event,i);
-
+            if(joystickActive && id==joystickPointerId){
                 float cx=width*0.16f;
                 float cy=height*0.785f;
-                float radius=std::max(height*0.065f,1.0f);
+                float radius=std::max(height*0.078f,1.0f);
 
                 float sx=(x-cx)/radius;
                 float sy=(cy-y)/radius;
                 float len=sqrtf(sx*sx+sy*sy);
-
                 if(len>1.0f){
                     sx/=len;
                     sy/=len;
                 }
-
                 joystickX=sx;
                 joystickY=sy;
-                break;
+            }
+
+            if(cameraTouchActive && id==cameraPointerId){
+                float dx=x-cameraLastX;
+                float dy=y-cameraLastY;
+
+                if(fabsf(x-cameraTouchStartX)>10.0f ||
+                   fabsf(y-cameraTouchStartY)>10.0f)
+                    cameraTouchMoved=true;
+
+                if(cameraTouchMoved){
+                    cameraYaw-=dx*0.006f;
+                    cameraPitch+=dy*0.004f;
+
+                    if(cameraPitch<0.08f) cameraPitch=0.08f;
+                    if(cameraPitch>0.85f) cameraPitch=0.85f;
+                }
+
+                cameraLastX=x;
+                cameraLastY=y;
             }
         }
         return 1;
     }
 
-    if(masked==AMOTION_EVENT_ACTION_POINTER_UP){
+    if(masked==AMOTION_EVENT_ACTION_POINTER_UP ||
+       masked==AMOTION_EVENT_ACTION_UP ||
+       masked==AMOTION_EVENT_ACTION_CANCEL){
+
         int id=AMotionEvent_getPointerId(event,index);
-        if(id==joystickPointerId){
+
+        if(joystickActive &&
+           (id==joystickPointerId ||
+            masked==AMOTION_EVENT_ACTION_CANCEL)){
             joystickActive=false;
             joystickPointerId=-1;
             joystickX=joystickY=0.0f;
         }
-        return 1;
-    }
 
-    if(masked==AMOTION_EVENT_ACTION_UP ||
-       masked==AMOTION_EVENT_ACTION_CANCEL){
-        joystickActive=false;
-        joystickPointerId=-1;
-        joystickX=joystickY=0.0f;
-        playerMoving=false;
-        playerRunning=false;
+        if(cameraTouchActive &&
+           (id==cameraPointerId ||
+            masked==AMOTION_EVENT_ACTION_CANCEL)){
+            if(masked!=AMOTION_EVENT_ACTION_CANCEL &&
+               !cameraTouchMoved &&
+               jumpY<=0.001f && jumpVelocity<=0.0f){
+                jumpVelocity=0.15f;
+            }
+            cameraTouchActive=false;
+            cameraPointerId=-1;
+        }
+
+        if(masked==AMOTION_EVENT_ACTION_UP ||
+           masked==AMOTION_EVENT_ACTION_CANCEL){
+            playerMoving=false;
+            playerRunning=false;
+        }
         return 1;
     }
 
