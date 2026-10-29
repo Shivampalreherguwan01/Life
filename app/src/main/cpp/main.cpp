@@ -637,78 +637,31 @@ static void drawControls(){
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask(GL_FALSE);
 
     float aspect=(float)std::max(height,1)/
                  (float)std::max(width,1);
 
-    // Clean dark joystick base: no bright multicolour rings.
-    drawHudPart(-0.70f,-0.57f,0.0f,
-                0.245f*aspect,0.245f,0.018f,
-                0.035f,0.040f,0.048f,0.58f);
+    // Joystick base and knob.
+    drawPart(-0.70f,-0.57f,0.0f,
+             0.18f*aspect,0.18f,0.012f,
+             0.20f,0.23f,0.28f);
 
-    drawHudPart(-0.70f,-0.57f,0.025f,
-                0.190f*aspect,0.190f,0.014f,
-                0.25f,0.27f,0.29f,0.62f);
-
-    drawHudPart(-0.70f,-0.57f,0.045f,
-                0.155f*aspect,0.155f,0.014f,
-                0.055f,0.065f,0.075f,0.92f);
-
-    // Neutral movable joystick knob.
-    drawHudPart(
-        -0.70f+joystickX*0.145f,
-        -0.57f+joystickY*0.145f,
-        0.075f,
-        0.100f*aspect,0.100f,0.026f,
-        0.76f,0.78f,0.80f,0.97f
+    drawPart(
+        -0.70f+joystickX*0.135f,
+        -0.57f+joystickY*0.135f,
+        0.025f,
+        0.086f*aspect,0.086f,0.018f,
+        joystickActive ? 0.20f : 0.35f,
+        joystickActive ? 0.65f : 0.40f,
+        joystickActive ? 1.00f : 0.48f
     );
 
-    // Jump icon floats without a circular button behind it.
-    // Small hop animation while the player is jumping.
-    float hop=(jumpY>0.001f || jumpVelocity>0.0f)
-              ? 0.018f*sinf(animationTime*13.0f) : 0.0f;
+    // Visible jump button background.
+    drawPart(0.72f,-0.56f,0.0f,
+             0.125f*aspect,0.125f,0.012f,
+             0.12f,0.55f,0.92f);
 
-    float bx=0.72f;
-    float by=-0.56f+hop;
-    float z=0.080f;
-    float c=0.96f;
-
-    // Head.
-    drawHudPart(bx+0.005f*aspect,by+0.105f,z,
-                0.025f*aspect,0.025f,0.018f,
-                c,c,c,1.0f);
-
-    // Leaning upper body: separated pieces form a dynamic pose.
-    drawHudPart(bx-0.008f*aspect,by+0.055f,z,
-                0.020f*aspect,0.043f,0.016f,
-                c,c,c,1.0f);
-
-    // Arms reach diagonally upward/outward.
-    drawHudPart(bx-0.035f*aspect,by+0.080f,z,
-                0.033f*aspect,0.012f,0.015f,
-                c,c,c,1.0f);
-
-    drawHudPart(bx+0.030f*aspect,by+0.087f,z,
-                0.032f*aspect,0.012f,0.015f,
-                c,c,c,1.0f);
-
-    // One leg extends down-left; the other bends outward.
-    drawHudPart(bx-0.027f*aspect,by+0.012f,z,
-                0.014f*aspect,0.035f,0.015f,
-                c,c,c,1.0f);
-
-    drawHudPart(bx+0.025f*aspect,by+0.018f,z,
-                0.030f*aspect,0.013f,0.015f,
-                c,c,c,1.0f);
-
-    drawHudPart(bx+0.048f*aspect,by-0.003f,z,
-                0.013f*aspect,0.027f,0.015f,
-                c,c,c,1.0f);
-
-    glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
-
     for(int i=0;i<16;i++) viewProjection[i]=saved[i];
     glEnable(GL_DEPTH_TEST);
 }
