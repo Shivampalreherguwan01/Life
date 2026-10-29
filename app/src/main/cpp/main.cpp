@@ -630,6 +630,9 @@ static void drawPlayerPart(float x,float y,float z,
 
 
 static void drawControls(){
+    // Restore the main game shader before drawing touch controls.
+    glUseProgram(program);
+
     float saved[16];
     for(int i=0;i<16;i++) saved[i]=viewProjection[i];
 
