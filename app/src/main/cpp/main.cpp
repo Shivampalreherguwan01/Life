@@ -33,6 +33,11 @@ static float playerFacing=1.0f;
 static float jumpY=0.0f;
 static float jumpVelocity=0.0f;
 static float animationTime=0.0f;
+static bool joystickActive=false;
+static int joystickPointerId=-1;
+static float joystickX=0.0f;
+static float joystickY=0.0f;
+static bool playerRunning=false;
 
 struct Vertex {
     float x,y,z,nx,ny,nz;
@@ -575,6 +580,42 @@ static void drawPlayerPart(float x,float y,float z,
     drawPart(worldX,y+jumpY+bob,worldZ,sx,sy,sz,r,g,b);
 }
 
+
+static void drawControls(){
+    float saved[16];
+    for(int i=0;i<16;i++) saved[i]=viewProjection[i];
+
+    identity(viewProjection);
+    glDisable(GL_DEPTH_TEST);
+
+    float aspect=(float)std::max(height,1)/
+                 (float)std::max(width,1);
+
+    // Joystick base.
+    drawPart(-0.70f,-0.57f,0.0f,
+             0.15f*aspect,0.15f,0.012f,
+             0.20f,0.23f,0.28f);
+
+    // Joystick knob.
+    drawPart(
+        -0.70f+joystickX*0.115f,
+        -0.57f+joystickY*0.115f,
+        0.025f,
+        0.072f*aspect,0.072f,0.018f,
+        joystickActive ? 0.20f : 0.35f,
+        joystickActive ? 0.65f : 0.40f,
+        joystickActive ? 1.00f : 0.48f
+    );
+
+    // Jump button.
+    drawPart(0.72f,-0.56f,0.0f,
+             0.115f*aspect,0.115f,0.012f,
+             0.12f,0.55f,0.92f);
+
+    for(int i=0;i<16;i++) viewProjection[i]=saved[i];
+    glEnable(GL_DEPTH_TEST);
+}
+
 static void drawFrame(){
     if(display==EGL_NO_DISPLAY || surface==EGL_NO_SURFACE)
         return;
@@ -582,17 +623,43 @@ static void drawFrame(){
     if(!eglMakeCurrent(display,surface,surface,context))
         return;
 
-    // Lightweight animation and jump physics.
-    animationTime += 0.055f;
-    if(playerMoving) {
-        // Walking animation runs while the player is being dragged.
+    // Continuous movement from the virtual joystick.
+    float stickLength=sqrtf(
+        joystickX*joystickX+joystickY*joystickY);
+
+    playerMoving=joystickActive && stickLength>0.12f;
+    playerRunning=playerMoving && stickLength>0.72f;
+
+    if(playerMoving){
+        float moveX=joystickX;
+        float moveZ=joystickY;
+        float moveLength=sqrtf(moveX*moveX+moveZ*moveZ);
+
+        if(moveLength>1.0f){
+            moveX/=moveLength;
+            moveZ/=moveLength;
+        }
+
+        float speed=playerRunning ? 0.105f : 0.052f;
+        playerX+=moveX*speed;
+        playerZ+=moveZ*speed;
+
+        playerX=std::clamp(playerX,-42.0f,42.0f);
+        playerZ=std::clamp(playerZ,-105.0f,35.0f);
+
+        playerYaw=atan2f(moveX,moveZ);
     }
-    if(jumpY > 0.0f || jumpVelocity > 0.0f) {
-        jumpY += jumpVelocity;
-        jumpVelocity -= 0.0065f;
-        if(jumpY <= 0.0f) {
-            jumpY = 0.0f;
-            jumpVelocity = 0.0f;
+
+    animationTime+=playerRunning ? 0.15f :
+                   (playerMoving ? 0.085f : 0.035f);
+
+    // Jump physics.
+    if(jumpY>0.0f || jumpVelocity>0.0f){
+        jumpY+=jumpVelocity;
+        jumpVelocity-=0.0065f;
+        if(jumpY<=0.0f){
+            jumpY=0.0f;
+            jumpVelocity=0.0f;
         }
     }
 
@@ -674,74 +741,97 @@ static void drawFrame(){
 
     }
 
+    drawControls();
     eglSwapBuffers(display,surface);
 }
+
 
 
 static int32_t handleInput(android_app*,AInputEvent* event){
     if(AInputEvent_getType(event)!=AINPUT_EVENT_TYPE_MOTION)
         return 0;
 
-    int action=AMotionEvent_getAction(event)&
-               AMOTION_EVENT_ACTION_MASK;
-    float x=AMotionEvent_getX(event,0);
-    float y=AMotionEvent_getY(event,0);
+    int action=AMotionEvent_getAction(event);
+    int masked=action&AMOTION_EVENT_ACTION_MASK;
+    int index=(action&AMOTION_EVENT_ACTION_POINTER_INDEX_MASK)
+              >>AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
 
-    if(action==AMOTION_EVENT_ACTION_DOWN){
-        touching=true;
-        movedTouch=false;
-        touchStartX=x;
-        lastTouchX=x;
-        lastTouchY=y;
-        playerMoving=false;
-        return 1;
-    }
+    if(masked==AMOTION_EVENT_ACTION_DOWN ||
+       masked==AMOTION_EVENT_ACTION_POINTER_DOWN){
 
-    if(action==AMOTION_EVENT_ACTION_MOVE && touching){
-        float dx=x-lastTouchX;
-        float dy=y-lastTouchY;
+        float x=AMotionEvent_getX(event,index);
+        float y=AMotionEvent_getY(event,index);
+        int id=AMotionEvent_getPointerId(event,index);
 
-        if(fabsf(x-touchStartX)>8.0f ||
-           fabsf(y-lastTouchY)>8.0f)
-            movedTouch=true;
-
-        // Screen drag controls movement on the ground plane.
-        // Up = forward (+Z); down = backward (-Z).
-        float moveX=dx*0.025f;
-        float moveZ=-dy*0.025f;
-
-        playerX+=moveX;
-        playerZ+=moveZ;
-
-        // Keep the player inside the current city area.
-        playerX=std::clamp(playerX,-42.0f,42.0f);
-        playerZ=std::clamp(playerZ,-105.0f,35.0f);
-
-        float distance=sqrtf(moveX*moveX+moveZ*moveZ);
-        if(distance>0.0005f){
-            playerYaw=atan2f(moveX,moveZ);
-            playerMoving=true;
-        }
-
-        lastTouchX=x;
-        lastTouchY=y;
-        return 1;
-    }
-
-    if(action==AMOTION_EVENT_ACTION_UP ||
-       action==AMOTION_EVENT_ACTION_CANCEL){
-        if(action==AMOTION_EVENT_ACTION_UP && !movedTouch){
+        if(x<width*0.42f && y>height*0.48f &&
+           !joystickActive){
+            joystickActive=true;
+            joystickPointerId=id;
+            joystickX=0.0f;
+            joystickY=0.0f;
+        }else if(x>width*0.57f && y>height*0.48f){
             if(jumpY<=0.001f && jumpVelocity<=0.0f)
                 jumpVelocity=0.15f;
         }
+        return 1;
+    }
 
-        touching=false;
+    if(masked==AMOTION_EVENT_ACTION_MOVE){
+        if(joystickActive){
+            int count=AMotionEvent_getPointerCount(event);
+
+            for(int i=0;i<count;i++){
+                if(AMotionEvent_getPointerId(event,i)
+                   !=joystickPointerId)
+                    continue;
+
+                float x=AMotionEvent_getX(event,i);
+                float y=AMotionEvent_getY(event,i);
+
+                float cx=width*0.16f;
+                float cy=height*0.785f;
+                float radius=std::max(height*0.065f,1.0f);
+
+                float sx=(x-cx)/radius;
+                float sy=(cy-y)/radius;
+                float len=sqrtf(sx*sx+sy*sy);
+
+                if(len>1.0f){
+                    sx/=len;
+                    sy/=len;
+                }
+
+                joystickX=sx;
+                joystickY=sy;
+                break;
+            }
+        }
+        return 1;
+    }
+
+    if(masked==AMOTION_EVENT_ACTION_POINTER_UP){
+        int id=AMotionEvent_getPointerId(event,index);
+        if(id==joystickPointerId){
+            joystickActive=false;
+            joystickPointerId=-1;
+            joystickX=joystickY=0.0f;
+        }
+        return 1;
+    }
+
+    if(masked==AMOTION_EVENT_ACTION_UP ||
+       masked==AMOTION_EVENT_ACTION_CANCEL){
+        joystickActive=false;
+        joystickPointerId=-1;
+        joystickX=joystickY=0.0f;
         playerMoving=false;
+        playerRunning=false;
         return 1;
     }
 
     return 0;
 }
+
 
 
 static void shutdownGraphics(){
