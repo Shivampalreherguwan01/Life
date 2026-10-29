@@ -195,15 +195,16 @@ layout(location=1) in vec3 normal;
 uniform mat4 mvp;
 uniform mat4 model;
 uniform vec3 tint;
+uniform float objectAlpha;
 
-out vec3 vColor;
+out vec4 vColor;
 
 void main(){
     vec3 n=normalize(mat3(model)*normal);
     vec3 light=normalize(vec3(-0.5,1.0,0.7));
     float diffuse=max(dot(n,light),0.0);
     float lighting=0.32+0.68*diffuse;
-    vColor=tint*lighting;
+    vColor=vec4(tint*lighting,objectAlpha);
     gl_Position=mvp*vec4(position,1.0);
 }
 )";
@@ -211,11 +212,11 @@ void main(){
 static const char* fragmentShader=R"(
 #version 300 es
 precision mediump float;
-in vec3 vColor;
+in vec4 vColor;
 out vec4 outputColor;
 
 void main(){
-    outputColor=vec4(vColor,1.0);
+    outputColor=vColor;
 }
 )";
 
@@ -373,6 +374,8 @@ static void drawPart(float x,float y,float z,
         glGetUniformLocation(program,"mvp"),1,GL_FALSE,mvp);
     glUniform3f(
         glGetUniformLocation(program,"tint"),r,g,b);
+    glUniform1f(
+        glGetUniformLocation(program,"objectAlpha"),1.0f);
 
     glDrawElements(GL_TRIANGLES,indexCount,GL_UNSIGNED_INT,nullptr);
 }
@@ -390,10 +393,46 @@ static void drawBlock(float x,float y,float z,
     glUniformMatrix4fv(glGetUniformLocation(program,"mvp"),
                        1,GL_FALSE,mvp);
     glUniform3f(glGetUniformLocation(program,"tint"),r,g,b);
+    glUniform1f(glGetUniformLocation(program,"objectAlpha"),1.0f);
     glDrawElements(GL_TRIANGLES,cubeIndexCount,
                    GL_UNSIGNED_INT,nullptr);
 }
 
+
+static void drawHudPart(float x,float y,float z,
+                         float sx,float sy,float sz,
+                         float r,float g,float b,float alpha){
+    float model[16],mvp[16];
+    glBindVertexArray(vao);
+    modelMatrix(model,x,y,z,sx,sy,sz);
+    multiply(mvp,viewProjection,model);
+
+    glUniformMatrix4fv(glGetUniformLocation(program,"model"),
+                       1,GL_FALSE,model);
+    glUniformMatrix4fv(glGetUniformLocation(program,"mvp"),
+                       1,GL_FALSE,mvp);
+    glUniform3f(glGetUniformLocation(program,"tint"),r,g,b);
+    glUniform1f(glGetUniformLocation(program,"objectAlpha"),alpha);
+    glDrawElements(GL_TRIANGLES,indexCount,GL_UNSIGNED_INT,nullptr);
+}
+
+static void drawHudBlock(float x,float y,float z,
+                         float sx,float sy,float sz,
+                         float r,float g,float b,float alpha){
+    float model[16],mvp[16];
+    glBindVertexArray(cubeVao);
+    modelMatrix(model,x,y,z,sx,sy,sz);
+    multiply(mvp,viewProjection,model);
+
+    glUniformMatrix4fv(glGetUniformLocation(program,"model"),
+                       1,GL_FALSE,model);
+    glUniformMatrix4fv(glGetUniformLocation(program,"mvp"),
+                       1,GL_FALSE,mvp);
+    glUniform3f(glGetUniformLocation(program,"tint"),r,g,b);
+    glUniform1f(glGetUniformLocation(program,"objectAlpha"),alpha);
+    glDrawElements(GL_TRIANGLES,cubeIndexCount,
+                   GL_UNSIGNED_INT,nullptr);
+}
 
 static void drawCity(){
     // Large green terrain.
@@ -598,32 +637,68 @@ static void drawControls(){
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
 
     float aspect=(float)std::max(height,1)/
                  (float)std::max(width,1);
 
-    // Larger, lightly translucent joystick base.
-    drawPart(-0.70f,-0.57f,0.0f,
-             0.18f*aspect,0.18f,0.012f,
-             0.20f,0.23f,0.28f);
+    // Large translucent joystick base and bright outer ring.
+    drawHudPart(-0.70f,-0.57f,0.0f,
+                0.205f*aspect,0.205f,0.018f,
+                0.07f,0.11f,0.17f,0.48f);
 
-    // Larger joystick knob.
-    drawPart(
+    drawHudPart(-0.70f,-0.57f,0.025f,
+                0.164f*aspect,0.164f,0.014f,
+                0.28f,0.63f,0.94f,0.72f);
+
+    drawHudPart(-0.70f,-0.57f,0.045f,
+                0.128f*aspect,0.128f,0.014f,
+                0.08f,0.16f,0.24f,0.90f);
+
+    // Larger joystick knob; moves with the user's finger.
+    drawHudPart(
         -0.70f+joystickX*0.135f,
         -0.57f+joystickY*0.135f,
-        0.025f,
-        0.086f*aspect,0.086f,0.018f,
-        joystickActive ? 0.20f : 0.35f,
-        joystickActive ? 0.65f : 0.40f,
-        joystickActive ? 1.00f : 0.48f
+        0.075f,
+        0.092f*aspect,0.092f,0.025f,
+        joystickActive ? 0.20f : 0.36f,
+        joystickActive ? 0.78f : 0.53f,
+        1.00f,0.98f
     );
 
-    // Jump button.
-    drawPart(0.72f,-0.56f,0.0f,
-             0.125f*aspect,0.125f,0.012f,
-             0.12f,0.55f,0.92f);
+    // Jump button: translucent blue disc with a pulsing upward arrow.
+    float pulse=0.018f*(0.5f+0.5f*sinf(animationTime*4.0f));
+    float jumpIconY=-0.56f+pulse;
 
+    drawHudPart(0.72f,-0.56f,0.0f,
+                0.158f*aspect,0.158f,0.018f,
+                0.04f,0.20f,0.38f,0.58f);
+
+    drawHudPart(0.72f,-0.56f,0.025f,
+                0.132f*aspect,0.132f,0.014f,
+                0.08f,0.56f,0.98f,0.88f);
+
+    // Arrow shaft.
+    drawHudBlock(0.72f,jumpIconY-0.005f,0.055f,
+                 0.025f*aspect,0.065f,0.012f,
+                 1.0f,1.0f,1.0f,1.0f);
+
+    // Arrow head.
+    drawHudBlock(0.72f,jumpIconY+0.050f,0.055f,
+                 0.025f*aspect,0.045f,0.012f,
+                 1.0f,1.0f,1.0f,1.0f);
+
+    drawHudBlock(0.72f-0.026f*aspect,jumpIconY+0.033f,0.055f,
+                 0.025f*aspect,0.040f,0.012f,
+                 1.0f,1.0f,1.0f,1.0f);
+
+    drawHudBlock(0.72f+0.026f*aspect,jumpIconY+0.033f,0.055f,
+                 0.025f*aspect,0.040f,0.012f,
+                 1.0f,1.0f,1.0f,1.0f);
+
+    glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
+
     for(int i=0;i<16;i++) viewProjection[i]=saved[i];
     glEnable(GL_DEPTH_TEST);
 }
@@ -643,8 +718,10 @@ static void drawFrame(){
     playerRunning=playerMoving && stickLength>0.72f;
 
     if(playerMoving){
-        float moveX=joystickX;
-        float moveZ=joystickY;
+        float moveX=joystickX*cosf(cameraYaw)
+                   +joystickY*sinf(cameraYaw);
+        float moveZ=-joystickX*sinf(cameraYaw)
+                   +joystickY*cosf(cameraYaw);
         float moveLength=sqrtf(moveX*moveX+moveZ*moveZ);
 
         if(moveLength>1.0f){
@@ -813,7 +890,7 @@ static int32_t handleInput(android_app*,AInputEvent* event){
             if(joystickActive && id==joystickPointerId){
                 float cx=width*0.16f;
                 float cy=height*0.785f;
-                float radius=std::max(height*0.078f,1.0f);
+                float radius=std::max(height*0.105f,1.0f);
 
                 float sx=(x-cx)/radius;
                 float sy=(cy-y)/radius;
