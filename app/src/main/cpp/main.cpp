@@ -916,7 +916,7 @@ static int32_t handleInput(android_app*,AInputEvent* event){
                     cameraPitch+=dy*0.004f;
 
                     if(cameraPitch<0.08f) cameraPitch=0.08f;
-                    if(cameraPitch>0.85f) cameraPitch=0.85f;
+                    if(cameraPitch>1.35f) cameraPitch=1.35f;
                 }
 
                 cameraLastX=x;
