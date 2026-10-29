@@ -642,80 +642,69 @@ static void drawControls(){
     float aspect=(float)std::max(height,1)/
                  (float)std::max(width,1);
 
-    // Minimal dark joystick base.
+    // Clean dark joystick base: no bright multicolour rings.
     drawHudPart(-0.70f,-0.57f,0.0f,
                 0.245f*aspect,0.245f,0.018f,
-                0.035f,0.045f,0.055f,0.66f);
+                0.035f,0.040f,0.048f,0.58f);
 
-    // One subtle grey inner ring.
     drawHudPart(-0.70f,-0.57f,0.025f,
-                0.195f*aspect,0.195f,0.014f,
-                0.30f,0.33f,0.36f,0.72f);
+                0.190f*aspect,0.190f,0.014f,
+                0.25f,0.27f,0.29f,0.62f);
 
-    // Dark center under the movable knob.
     drawHudPart(-0.70f,-0.57f,0.045f,
-                0.160f*aspect,0.160f,0.014f,
-                0.075f,0.085f,0.095f,0.94f);
+                0.155f*aspect,0.155f,0.014f,
+                0.055f,0.065f,0.075f,0.92f);
 
-    // Large neutral joystick knob.
+    // Neutral movable joystick knob.
     drawHudPart(
         -0.70f+joystickX*0.145f,
         -0.57f+joystickY*0.145f,
         0.075f,
-        0.105f*aspect,0.105f,0.026f,
-        joystickActive ? 0.78f : 0.64f,
-        joystickActive ? 0.81f : 0.68f,
-        joystickActive ? 0.84f : 0.72f,
-        0.98f
+        0.100f*aspect,0.100f,0.026f,
+        0.76f,0.78f,0.80f,0.97f
     );
 
-    // Dark jump button, with a restrained pressed/pulse effect.
-    float pulse=0.5f+0.5f*sinf(animationTime*4.0f);
-    float pressScale=(jumpY>0.001f || jumpVelocity>0.0f)
-                     ? 0.90f : 1.0f;
+    // Jump icon floats without a circular button behind it.
+    // Small hop animation while the player is jumping.
+    float hop=(jumpY>0.001f || jumpVelocity>0.0f)
+              ? 0.018f*sinf(animationTime*13.0f) : 0.0f;
+
     float bx=0.72f;
-    float by=-0.56f;
-    float br=0.165f*pressScale;
-
-    drawHudPart(bx,by,0.0f,
-                br*aspect,br,0.018f,
-                0.035f,0.045f,0.055f,0.72f);
-
-    drawHudPart(bx,by,0.025f,
-                br*0.82f*aspect,br*0.82f,0.014f,
-                0.25f,0.28f,0.31f,0.90f);
-
-    // White jumping-person silhouette: head, torso, arms and legs.
-    float iconY=by+0.005f+0.008f*pulse;
-    float white=0.94f;
+    float by=-0.56f+hop;
+    float z=0.080f;
+    float c=0.96f;
 
     // Head.
-    drawHudPart(bx,iconY+0.060f,0.060f,
-                0.027f*aspect,0.027f,0.020f,
-                white,white,white,1.0f);
+    drawHudPart(bx+0.005f*aspect,by+0.105f,z,
+                0.025f*aspect,0.025f,0.018f,
+                c,c,c,1.0f);
 
-    // Torso.
-    drawHudPart(bx,iconY+0.012f,0.060f,
-                0.025f*aspect,0.048f,0.018f,
-                white,white,white,1.0f);
+    // Leaning upper body: separated pieces form a dynamic pose.
+    drawHudPart(bx-0.008f*aspect,by+0.055f,z,
+                0.020f*aspect,0.043f,0.016f,
+                c,c,c,1.0f);
 
-    // Arms angled outward, represented by compact rounded shapes.
-    drawHudPart(bx-0.038f*aspect,iconY+0.035f,0.060f,
-                0.035f*aspect,0.012f,0.016f,
-                white,white,white,1.0f);
+    // Arms reach diagonally upward/outward.
+    drawHudPart(bx-0.035f*aspect,by+0.080f,z,
+                0.033f*aspect,0.012f,0.015f,
+                c,c,c,1.0f);
 
-    drawHudPart(bx+0.038f*aspect,iconY+0.035f,0.060f,
-                0.035f*aspect,0.012f,0.016f,
-                white,white,white,1.0f);
+    drawHudPart(bx+0.030f*aspect,by+0.087f,z,
+                0.032f*aspect,0.012f,0.015f,
+                c,c,c,1.0f);
 
-    // Legs spread into a jumping pose.
-    drawHudPart(bx-0.027f*aspect,iconY-0.040f,0.060f,
-                0.014f*aspect,0.040f,0.016f,
-                white,white,white,1.0f);
+    // One leg extends down-left; the other bends outward.
+    drawHudPart(bx-0.027f*aspect,by+0.012f,z,
+                0.014f*aspect,0.035f,0.015f,
+                c,c,c,1.0f);
 
-    drawHudPart(bx+0.027f*aspect,iconY-0.040f,0.060f,
-                0.014f*aspect,0.040f,0.016f,
-                white,white,white,1.0f);
+    drawHudPart(bx+0.025f*aspect,by+0.018f,z,
+                0.030f*aspect,0.013f,0.015f,
+                c,c,c,1.0f);
+
+    drawHudPart(bx+0.048f*aspect,by-0.003f,z,
+                0.013f*aspect,0.027f,0.015f,
+                c,c,c,1.0f);
 
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
