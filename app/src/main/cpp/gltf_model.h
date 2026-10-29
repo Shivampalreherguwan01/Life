@@ -5,5 +5,5 @@
 
 bool initGltfModel(AAssetManager* assets);
 bool isGltfModelLoaded();
-void drawGltfModel(const float* viewProjection, float playerX);
+void drawGltfModel(const float* viewProjection, float playerX, float playerZ, float playerYaw);
 void destroyGltfModel();

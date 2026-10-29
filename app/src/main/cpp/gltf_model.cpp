@@ -425,14 +425,17 @@ bool isGltfModelLoaded() {
     return modelLoaded;
 }
 
-void drawGltfModel(const float* viewProjection, float playerX) {
+void drawGltfModel(const float* viewProjection, float playerX, float playerZ, float playerYaw) {
     if (!modelLoaded || !gltfProgram) return;
 
+    const float c = std::cos(playerYaw);
+    const float sn = std::sin(playerYaw);
+
     float model[16] = {
-        1,0,0,0,
-        0,1,0,0,
-        0,0,1,0,
-        playerX,0,0,1
+         c, 0, -sn, 0,
+         0, 1,   0, 0,
+        sn, 0,   c, 0,
+        playerX, 0, playerZ, 1
     };
 
     float mvp[16] = {};

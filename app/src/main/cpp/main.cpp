@@ -793,8 +793,8 @@ static void drawFrame(){
 
     drawCity();
 
-    if (false && isGltfModelLoaded()) {
-        drawGltfModel(viewProjection, playerX);
+    if (isGltfModelLoaded()) {
+        drawGltfModel(viewProjection, playerX, playerZ, playerYaw);
     } else {
     // Shoes
     drawPlayerPart(-0.13f + (playerMoving ? sinf(animationTime*2.0f)*0.085f : 0.0f),0.09f + (playerMoving ? fabsf(sinf(animationTime*2.0f))*0.055f : 0.0f),(playerMoving ? cosf(animationTime*2.0f)*0.065f : 0.0f),
