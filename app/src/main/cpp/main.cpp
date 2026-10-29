@@ -39,7 +39,7 @@ static float joystickX=0.0f;
 static float joystickY=0.0f;
 static bool playerRunning=false;
 static float cameraYaw=0.0f;
-static float cameraPitch=0.30f;
+static float cameraPitch=0.12f;
 static bool cameraTouchActive=false;
 static int cameraPointerId=-1;
 static float cameraLastX=0.0f;
@@ -642,59 +642,80 @@ static void drawControls(){
     float aspect=(float)std::max(height,1)/
                  (float)std::max(width,1);
 
-    // Large translucent joystick base and bright outer ring.
+    // Minimal dark joystick base.
     drawHudPart(-0.70f,-0.57f,0.0f,
-                0.205f*aspect,0.205f,0.018f,
-                0.07f,0.11f,0.17f,0.48f);
+                0.245f*aspect,0.245f,0.018f,
+                0.035f,0.045f,0.055f,0.66f);
 
+    // One subtle grey inner ring.
     drawHudPart(-0.70f,-0.57f,0.025f,
-                0.164f*aspect,0.164f,0.014f,
-                0.28f,0.63f,0.94f,0.72f);
+                0.195f*aspect,0.195f,0.014f,
+                0.30f,0.33f,0.36f,0.72f);
 
+    // Dark center under the movable knob.
     drawHudPart(-0.70f,-0.57f,0.045f,
-                0.128f*aspect,0.128f,0.014f,
-                0.08f,0.16f,0.24f,0.90f);
+                0.160f*aspect,0.160f,0.014f,
+                0.075f,0.085f,0.095f,0.94f);
 
-    // Larger joystick knob; moves with the user's finger.
+    // Large neutral joystick knob.
     drawHudPart(
-        -0.70f+joystickX*0.135f,
-        -0.57f+joystickY*0.135f,
+        -0.70f+joystickX*0.145f,
+        -0.57f+joystickY*0.145f,
         0.075f,
-        0.092f*aspect,0.092f,0.025f,
-        joystickActive ? 0.20f : 0.36f,
-        joystickActive ? 0.78f : 0.53f,
-        1.00f,0.98f
+        0.105f*aspect,0.105f,0.026f,
+        joystickActive ? 0.78f : 0.64f,
+        joystickActive ? 0.81f : 0.68f,
+        joystickActive ? 0.84f : 0.72f,
+        0.98f
     );
 
-    // Jump button: translucent blue disc with a pulsing upward arrow.
-    float pulse=0.018f*(0.5f+0.5f*sinf(animationTime*4.0f));
-    float jumpIconY=-0.56f+pulse;
+    // Dark jump button, with a restrained pressed/pulse effect.
+    float pulse=0.5f+0.5f*sinf(animationTime*4.0f);
+    float pressScale=(jumpY>0.001f || jumpVelocity>0.0f)
+                     ? 0.90f : 1.0f;
+    float bx=0.72f;
+    float by=-0.56f;
+    float br=0.165f*pressScale;
 
-    drawHudPart(0.72f,-0.56f,0.0f,
-                0.158f*aspect,0.158f,0.018f,
-                0.04f,0.20f,0.38f,0.58f);
+    drawHudPart(bx,by,0.0f,
+                br*aspect,br,0.018f,
+                0.035f,0.045f,0.055f,0.72f);
 
-    drawHudPart(0.72f,-0.56f,0.025f,
-                0.132f*aspect,0.132f,0.014f,
-                0.08f,0.56f,0.98f,0.88f);
+    drawHudPart(bx,by,0.025f,
+                br*0.82f*aspect,br*0.82f,0.014f,
+                0.25f,0.28f,0.31f,0.90f);
 
-    // Arrow shaft.
-    drawHudBlock(0.72f,jumpIconY-0.005f,0.055f,
-                 0.025f*aspect,0.065f,0.012f,
-                 1.0f,1.0f,1.0f,1.0f);
+    // White jumping-person silhouette: head, torso, arms and legs.
+    float iconY=by+0.005f+0.008f*pulse;
+    float white=0.94f;
 
-    // Arrow head.
-    drawHudBlock(0.72f,jumpIconY+0.050f,0.055f,
-                 0.025f*aspect,0.045f,0.012f,
-                 1.0f,1.0f,1.0f,1.0f);
+    // Head.
+    drawHudPart(bx,iconY+0.060f,0.060f,
+                0.027f*aspect,0.027f,0.020f,
+                white,white,white,1.0f);
 
-    drawHudBlock(0.72f-0.026f*aspect,jumpIconY+0.033f,0.055f,
-                 0.025f*aspect,0.040f,0.012f,
-                 1.0f,1.0f,1.0f,1.0f);
+    // Torso.
+    drawHudPart(bx,iconY+0.012f,0.060f,
+                0.025f*aspect,0.048f,0.018f,
+                white,white,white,1.0f);
 
-    drawHudBlock(0.72f+0.026f*aspect,jumpIconY+0.033f,0.055f,
-                 0.025f*aspect,0.040f,0.012f,
-                 1.0f,1.0f,1.0f,1.0f);
+    // Arms angled outward, represented by compact rounded shapes.
+    drawHudPart(bx-0.038f*aspect,iconY+0.035f,0.060f,
+                0.035f*aspect,0.012f,0.016f,
+                white,white,white,1.0f);
+
+    drawHudPart(bx+0.038f*aspect,iconY+0.035f,0.060f,
+                0.035f*aspect,0.012f,0.016f,
+                white,white,white,1.0f);
+
+    // Legs spread into a jumping pose.
+    drawHudPart(bx-0.027f*aspect,iconY-0.040f,0.060f,
+                0.014f*aspect,0.040f,0.016f,
+                white,white,white,1.0f);
+
+    drawHudPart(bx+0.027f*aspect,iconY-0.040f,0.060f,
+                0.014f*aspect,0.040f,0.016f,
+                white,white,white,1.0f);
 
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
@@ -763,11 +784,12 @@ static void drawFrame(){
     float aspect=(float)width/(float)std::max(height,1);
 
     perspective(projection,1.05f,aspect,0.1f,100.0f);
-    float camDistance=10.0f;
+    float camDistance=7.5f;
     float horizontalDistance=cosf(cameraPitch)*camDistance;
     float camBackX=-sinf(cameraYaw)*horizontalDistance;
     float camBackZ=-cosf(cameraYaw)*horizontalDistance;
-    float camHeight=5.0f+sinf(cameraPitch)*camDistance;
+    float camHeight=std::max(0.65f,
+        1.7f+sinf(cameraPitch)*camDistance);
     float targetX=playerX;
     float targetZ=playerZ;
 
@@ -890,7 +912,7 @@ static int32_t handleInput(android_app*,AInputEvent* event){
             if(joystickActive && id==joystickPointerId){
                 float cx=width*0.16f;
                 float cy=height*0.785f;
-                float radius=std::max(height*0.105f,1.0f);
+                float radius=std::max(height*0.125f,1.0f);
 
                 float sx=(x-cx)/radius;
                 float sy=(cy-y)/radius;
@@ -915,8 +937,8 @@ static int32_t handleInput(android_app*,AInputEvent* event){
                     cameraYaw-=dx*0.006f;
                     cameraPitch+=dy*0.004f;
 
-                    if(cameraPitch<0.08f) cameraPitch=0.08f;
-                    if(cameraPitch>1.35f) cameraPitch=1.35f;
+                    if(cameraPitch< -0.45f) cameraPitch= -0.45f;
+                    if(cameraPitch>0.75f) cameraPitch=0.75f;
                 }
 
                 cameraLastX=x;
