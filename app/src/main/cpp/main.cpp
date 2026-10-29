@@ -22,7 +22,9 @@ static GLuint cubeVao=0, cubeVbo=0, cubeEbo=0;
 static GLsizei cubeIndexCount=0;
 
 static int width=1,height=1;
-static float playerX=0.0f,lastTouchX=0.0f;
+static float playerX=0.0f, playerZ=0.0f;
+static float lastTouchX=0.0f, lastTouchY=0.0f;
+static float playerYaw=0.0f;
 static bool touching=false;
 static bool playerMoving=false;
 static bool movedTouch=false;
@@ -555,17 +557,22 @@ static void drawCity(){
 }
 
 
+
 static void drawPlayerPart(float x,float y,float z,
-                            float sx,float sy,float sz,
-                            float r,float g,float b){
-    // Turn the whole character when facing the opposite direction.
-    float facing = playerFacing;
-    float worldX = playerX + x * facing;
+                           float sx,float sy,float sz,
+                           float r,float g,float b){
+    // Rotate each body-part position around the character's Y axis.
+    float c=cosf(playerYaw);
+    float sn=sinf(playerYaw);
 
-    // Gentle body bounce while walking.
-    float bob = playerMoving ? fabsf(sinf(animationTime * 2.0f))*0.025f : 0.0f;
+    float worldX=playerX+x*c+z*sn;
+    float worldZ=playerZ-x*sn+z*c;
 
-    drawPart(worldX,y+jumpY+bob,z*facing,sx,sy,sz,r,g,b);
+    float bob=playerMoving
+        ? fabsf(sinf(animationTime*2.0f))*0.025f
+        : 0.0f;
+
+    drawPart(worldX,y+jumpY+bob,worldZ,sx,sy,sz,r,g,b);
 }
 
 static void drawFrame(){
@@ -600,8 +607,15 @@ static void drawFrame(){
     float aspect=(float)width/(float)std::max(height,1);
 
     perspective(projection,1.05f,aspect,0.1f,100.0f);
-    lookAt(view,{0.0f,6.0f,12.0f},
-                {0.0f,0.8f,-5.0f},{0.0f,1.0f,0.0f});
+    float camBackX=-sinf(playerYaw)*10.0f;
+    float camBackZ=-cosf(playerYaw)*10.0f;
+    float targetX=playerX+sinf(playerYaw)*2.0f;
+    float targetZ=playerZ+cosf(playerYaw)*2.0f;
+
+    lookAt(view,
+        {playerX+camBackX,5.5f+jumpY,playerZ+camBackZ},
+        {targetX,0.9f+jumpY,targetZ},
+        {0.0f,1.0f,0.0f});
     multiply(viewProjection,projection,view);
 
     glUseProgram(program);
@@ -663,6 +677,7 @@ static void drawFrame(){
     eglSwapBuffers(display,surface);
 }
 
+
 static int32_t handleInput(android_app*,AInputEvent* event){
     if(AInputEvent_getType(event)!=AINPUT_EVENT_TYPE_MOTION)
         return 0;
@@ -670,29 +685,46 @@ static int32_t handleInput(android_app*,AInputEvent* event){
     int action=AMotionEvent_getAction(event)&
                AMOTION_EVENT_ACTION_MASK;
     float x=AMotionEvent_getX(event,0);
+    float y=AMotionEvent_getY(event,0);
 
     if(action==AMOTION_EVENT_ACTION_DOWN){
         touching=true;
         movedTouch=false;
         touchStartX=x;
         lastTouchX=x;
+        lastTouchY=y;
         playerMoving=false;
         return 1;
     }
 
     if(action==AMOTION_EVENT_ACTION_MOVE && touching){
         float dx=x-lastTouchX;
-        if(fabsf(x-touchStartX)>8.0f)
+        float dy=y-lastTouchY;
+
+        if(fabsf(x-touchStartX)>8.0f ||
+           fabsf(y-lastTouchY)>8.0f)
             movedTouch=true;
 
-        if(fabsf(dx)>0.5f){
-            playerFacing=(dx<0.0f)?-1.0f:1.0f;
+        // Screen drag controls movement on the ground plane.
+        // Up = forward (+Z); down = backward (-Z).
+        float moveX=dx*0.025f;
+        float moveZ=-dy*0.025f;
+
+        playerX+=moveX;
+        playerZ+=moveZ;
+
+        // Keep the player inside the current city area.
+        playerX=std::clamp(playerX,-42.0f,42.0f);
+        playerZ=std::clamp(playerZ,-105.0f,35.0f);
+
+        float distance=sqrtf(moveX*moveX+moveZ*moveZ);
+        if(distance>0.0005f){
+            playerYaw=atan2f(moveX,moveZ);
             playerMoving=true;
         }
 
-        playerX+=dx*2.0f/(float)std::max(width,1);
-        playerX=std::clamp(playerX,-2.0f,2.0f);
         lastTouchX=x;
+        lastTouchY=y;
         return 1;
     }
 
@@ -702,6 +734,7 @@ static int32_t handleInput(android_app*,AInputEvent* event){
             if(jumpY<=0.001f && jumpVelocity<=0.0f)
                 jumpVelocity=0.15f;
         }
+
         touching=false;
         playerMoving=false;
         return 1;
@@ -709,6 +742,7 @@ static int32_t handleInput(android_app*,AInputEvent* event){
 
     return 0;
 }
+
 
 static void shutdownGraphics(){
     if(display!=EGL_NO_DISPLAY){
